@@ -1,30 +1,55 @@
 {
   "expo": {
     "name": "MindfulMoments",
-    "slug": "MindfulMoments",
+    "slug": "mindfulmoments",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "dark",
+    "scheme": "mindfulmoments",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1E1E1E"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mindfulmoments.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1E1E1E"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.mindfulmoments.app",
+      "permissions": [
+        "android.permission.VIBRATE",
+        "android.permission.ACCELEROMETER"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow MindfulMoments to access device motion for tremor detection."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3e752bae-eadb-4e57-9c2c-947784614acc"
+      }
     }
   }
 }
