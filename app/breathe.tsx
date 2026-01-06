@@ -25,11 +25,9 @@ export default function BreatheScreen() {
 
     // Handle phase changes from animation
     const handlePhaseChange = (phase: 'inhale' | 'exhale') => {
-        console.log(`[BREATHE] Phase change callback: ${phase}, Round: ${currentRound}`);
 
         // Prevent duplicate calls for same phase
         if (animationPhaseRef.current === phase) {
-            console.log(`[BREATHE] Ignoring duplicate phase: ${phase}`);
             return;
         }
 
@@ -40,24 +38,19 @@ export default function BreatheScreen() {
         const duration = phase === 'inhale' ? INHALE_DURATION : EXHALE_DURATION;
         setCountdown(duration);
 
-        console.log(`[BREATHE] Starting ${phase} - duration: ${duration}s`);
-
         // Play continuous haptic pattern for this phase
         if (isActive) {
-            console.log(`[BREATHE] Playing continuous haptic pattern for ${phase}`);
             playHapticForPhase(phase);
         }
 
         // Increment round when exhale completes (next phase is inhale)
         if (phase === 'inhale' && currentRound < TOTAL_ROUNDS) {
             const newRound = currentRound + 1;
-            console.log(`[BREATHE] Exhale complete! Moving to round ${newRound}`);
             setCurrentRound(newRound);
         }
 
         // Check if we've completed all rounds
         if (phase === 'exhale' && currentRound >= TOTAL_ROUNDS) {
-            console.log('[BREATHE] ========== ALL ROUNDS COMPLETE! STOPPING ==========');
             // Stop after this exhale completes
             setTimeout(() => {
                 setIsActive(false);
@@ -69,23 +62,17 @@ export default function BreatheScreen() {
     // Countdown timer
     useEffect(() => {
         if (!isActive) {
-            console.log('[BREATHE] Not active, stopping countdown');
             return;
         }
-
-        console.log(`[BREATHE] Starting countdown timer for ${currentPhase}`);
 
         const interval = setInterval(() => {
             const elapsed = Math.floor((Date.now() - phaseStartTimeRef.current) / 1000);
             const phaseDuration = currentPhase === 'inhale' ? INHALE_DURATION : EXHALE_DURATION;
             const remaining = Math.max(0, phaseDuration - elapsed);
-
-            console.log(`[BREATHE] ${currentPhase} - elapsed: ${elapsed}s, remaining: ${remaining}s`);
             setCountdown(remaining);
         }, 1000);
 
         return () => {
-            console.log('[BREATHE] Clearing countdown interval');
             clearInterval(interval);
         };
     }, [isActive, currentPhase]);
@@ -93,7 +80,6 @@ export default function BreatheScreen() {
     // Toggle breathing exercise
     const toggleBreathing = () => {
         if (!isActive) {
-            console.log('[BREATHE] ========== STARTING EXERCISE ==========');
             setIsActive(true);
             setCurrentPhase('inhale');
             setCountdown(INHALE_DURATION);
@@ -101,7 +87,6 @@ export default function BreatheScreen() {
             phaseStartTimeRef.current = Date.now();
             animationPhaseRef.current = 'inhale';
         } else {
-            console.log('[BREATHE] ========== STOPPING EXERCISE ==========');
             setIsActive(false);
             stopHaptics();
             setCurrentPhase('inhale');
@@ -130,11 +115,9 @@ export default function BreatheScreen() {
     // Stop when user navigates away from this screen
     useFocusEffect(
         React.useCallback(() => {
-            console.log('[BREATHE] Screen focused');
 
             // Return cleanup function that runs when screen loses focus
             return () => {
-                console.log('[BREATHE] Screen lost focus - stopping exercise');
                 setIsActive(false);
                 stopHaptics();
             };

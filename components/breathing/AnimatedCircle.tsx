@@ -23,18 +23,14 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
 
     useEffect(() => {
         shouldContinue.current = isActive;
-        console.log(`[ANIMATION] isActive changed: ${isActive}`);
 
         if (isActive) {
-            console.log('[ANIMATION] Starting animation loop');
             const animate = () => {
                 if (!shouldContinue.current) {
-                    console.log('[ANIMATION] shouldContinue is false, stopping');
                     return;
                 }
 
                 // Inhale
-                console.log('[ANIMATION] Starting INHALE animation (4s)');
                 onPhaseChangeRef.current('inhale');
                 Animated.parallel([
                     Animated.timing(scale, {
@@ -51,12 +47,10 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                     }),
                 ]).start(() => {
                     if (!shouldContinue.current) {
-                        console.log('[ANIMATION] shouldContinue is false after inhale, stopping');
                         return;
                     }
 
                     // Exhale
-                    console.log('[ANIMATION] Starting EXHALE animation (6s)');
                     onPhaseChangeRef.current('exhale');
                     Animated.parallel([
                         Animated.timing(scale, {
@@ -73,17 +67,14 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                         }),
                     ]).start(() => {
                         if (shouldContinue.current) {
-                            console.log('[ANIMATION] Cycle complete, looping...');
                             animate(); // Loop only if still active
                         } else {
-                            console.log('[ANIMATION] shouldContinue is false after exhale, stopping');
                         }
                     });
                 });
             };
             animate();
         } else {
-            console.log('[ANIMATION] Stopping and resetting');
             // Stop all animations immediately
             scale.stopAnimation();
             opacity.stopAnimation();

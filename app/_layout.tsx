@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { EmergencyProvider } from '../components/ui/EmergencyButton';
+import { OfflineIndicator } from '../components/ui/OfflineIndicator';
 import { TremorAlert } from '../components/tremor/TremorAlert';
 import { useTremorDetection } from '../hooks/useTremorDetection';
 import { Colors } from '../constants/Colors';
@@ -57,6 +58,7 @@ function RootLayoutContent() {
                 <Stack.Screen name="check-in" options={{ title: 'Check In' }} />
                 <Stack.Screen name="settings" options={{ title: 'Settings' }} />
             </Stack>
+            <OfflineIndicator />
             <TremorAlert visible={isTremorDetected} onDismiss={resetTremorDetection} />
         </>
     );
