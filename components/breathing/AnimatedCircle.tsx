@@ -31,6 +31,7 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                 }
 
                 // Inhale
+                console.log('[ANIMATION] Starting INHALE animation (4s)');
                 onPhaseChangeRef.current('inhale');
                 Animated.parallel([
                     Animated.timing(scale, {
@@ -51,6 +52,7 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                     }
 
                     // Exhale
+                    console.log('[ANIMATION] Starting EXHALE animation (6s)');
                     onPhaseChangeRef.current('exhale');
                     Animated.parallel([
                         Animated.timing(scale, {
