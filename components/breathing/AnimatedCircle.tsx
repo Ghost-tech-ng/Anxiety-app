@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Animated, StyleSheet, Easing } from 'react-native';
 import { Colors } from '../../constants/Colors';
 
@@ -14,16 +14,28 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
     const scale = useRef(new Animated.Value(0.5)).current;
     const opacity = useRef(new Animated.Value(0.6)).current;
     const shouldContinue = useRef(isActive);
+    const onPhaseChangeRef = useRef(onPhaseChange);
+
+    // Update ref when callback changes (doesn't trigger re-animation)
+    useEffect(() => {
+        onPhaseChangeRef.current = onPhaseChange;
+    }, [onPhaseChange]);
 
     useEffect(() => {
         shouldContinue.current = isActive;
+        console.log(`[ANIMATION] isActive changed: ${isActive}`);
 
         if (isActive) {
+            console.log('[ANIMATION] Starting animation loop');
             const animate = () => {
-                if (!shouldContinue.current) return; // Stop if no longer active
+                if (!shouldContinue.current) {
+                    console.log('[ANIMATION] shouldContinue is false, stopping');
+                    return;
+                }
 
                 // Inhale
-                onPhaseChange('inhale');
+                console.log('[ANIMATION] Starting INHALE animation (4s)');
+                onPhaseChangeRef.current('inhale');
                 Animated.parallel([
                     Animated.timing(scale, {
                         toValue: 1.5,
@@ -38,10 +50,14 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                         useNativeDriver: true,
                     }),
                 ]).start(() => {
-                    if (!shouldContinue.current) return; // Stop if no longer active
+                    if (!shouldContinue.current) {
+                        console.log('[ANIMATION] shouldContinue is false after inhale, stopping');
+                        return;
+                    }
 
                     // Exhale
-                    onPhaseChange('exhale');
+                    console.log('[ANIMATION] Starting EXHALE animation (6s)');
+                    onPhaseChangeRef.current('exhale');
                     Animated.parallel([
                         Animated.timing(scale, {
                             toValue: 0.5,
@@ -57,13 +73,17 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                         }),
                     ]).start(() => {
                         if (shouldContinue.current) {
+                            console.log('[ANIMATION] Cycle complete, looping...');
                             animate(); // Loop only if still active
+                        } else {
+                            console.log('[ANIMATION] shouldContinue is false after exhale, stopping');
                         }
                     });
                 });
             };
             animate();
         } else {
+            console.log('[ANIMATION] Stopping and resetting');
             // Stop all animations immediately
             scale.stopAnimation();
             opacity.stopAnimation();
@@ -82,7 +102,7 @@ export const AnimatedCircle: React.FC<AnimatedCircleProps> = ({ isActive, onPhas
                 }),
             ]).start();
         }
-    }, [isActive, onPhaseChange, scale, opacity]);
+    }, [isActive, scale, opacity]); // Removed onPhaseChange from dependencies!
 
     return (
         <Animated.View style={[styles.circle, { transform: [{ scale }], opacity }]}>

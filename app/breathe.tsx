@@ -1,227 +1,216 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, AccessibilityInfo } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnimatedCircle } from '../components/breathing/AnimatedCircle';
-import { Button } from '../components/ui/Button';
 import { EmergencyButton } from '../components/ui/EmergencyButton';
-import { useHaptics, HapticPattern } from '../hooks/useHaptics';
-import { useAnxietyLog } from '../hooks/useAnxietyLog';
+import { useHaptics } from '../hooks/useHaptics';
 import { Colors } from '../constants/Colors';
 import { Typography } from '../constants/Typography';
-import { Accessibility } from '../constants/Accessibility';
-import { Ionicons } from '@expo/vector-icons';
+
+const INHALE_DURATION = 4; // seconds
+const EXHALE_DURATION = 6; // seconds
+const TOTAL_ROUNDS = 5;
 
 export default function BreatheScreen() {
     const [isActive, setIsActive] = useState(false);
     const [currentPhase, setCurrentPhase] = useState<'inhale' | 'exhale'>('inhale');
-    const [sessionCount, setSessionCount] = useState(0);
-    const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-    const [showPatternModal, setShowPatternModal] = useState(false);
-    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-    const [breathingDuration, setBreathingDuration] = useState(5); // minutes
-    const [timeRemaining, setTimeRemaining] = useState(300); // seconds (5 min default)
+    const [countdown, setCountdown] = useState(INHALE_DURATION);
+    const [currentRound, setCurrentRound] = useState(1);
+    const [hapticPattern, setHapticPattern] = useState<string>('wave');
 
-    const { playHapticForPhase, currentPattern, setCurrentPattern, stopHaptics } = useHaptics();
-    const { addEntry } = useAnxietyLog();
+    const { playHapticForPhase, stopHaptics } = useHaptics();
+    const phaseStartTimeRef = useRef<number>(0);
+    const animationPhaseRef = useRef<'inhale' | 'exhale'>('inhale');
 
-    // Load breathing duration from settings
+    // Handle phase changes from animation
+    const handlePhaseChange = (phase: 'inhale' | 'exhale') => {
+        console.log(`[BREATHE] Phase change callback: ${phase}, Round: ${currentRound}`);
+
+        // Prevent duplicate calls for same phase
+        if (animationPhaseRef.current === phase) {
+            console.log(`[BREATHE] Ignoring duplicate phase: ${phase}`);
+            return;
+        }
+
+        animationPhaseRef.current = phase;
+        setCurrentPhase(phase);
+        phaseStartTimeRef.current = Date.now();
+
+        const duration = phase === 'inhale' ? INHALE_DURATION : EXHALE_DURATION;
+        setCountdown(duration);
+
+        console.log(`[BREATHE] Starting ${phase} - duration: ${duration}s`);
+
+        // Play continuous haptic pattern for this phase
+        if (isActive) {
+            console.log(`[BREATHE] Playing continuous haptic pattern for ${phase}`);
+            playHapticForPhase(phase);
+        }
+
+        // Increment round when exhale completes (next phase is inhale)
+        if (phase === 'inhale' && currentRound < TOTAL_ROUNDS) {
+            const newRound = currentRound + 1;
+            console.log(`[BREATHE] Exhale complete! Moving to round ${newRound}`);
+            setCurrentRound(newRound);
+        }
+
+        // Check if we've completed all rounds
+        if (phase === 'exhale' && currentRound >= TOTAL_ROUNDS) {
+            console.log('[BREATHE] ========== ALL ROUNDS COMPLETE! STOPPING ==========');
+            // Stop after this exhale completes
+            setTimeout(() => {
+                setIsActive(false);
+                stopHaptics();
+            }, EXHALE_DURATION * 1000);
+        }
+    };
+
+    // Countdown timer
     useEffect(() => {
-        const loadDuration = async () => {
+        if (!isActive) {
+            console.log('[BREATHE] Not active, stopping countdown');
+            return;
+        }
+
+        console.log(`[BREATHE] Starting countdown timer for ${currentPhase}`);
+
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - phaseStartTimeRef.current) / 1000);
+            const phaseDuration = currentPhase === 'inhale' ? INHALE_DURATION : EXHALE_DURATION;
+            const remaining = Math.max(0, phaseDuration - elapsed);
+
+            console.log(`[BREATHE] ${currentPhase} - elapsed: ${elapsed}s, remaining: ${remaining}s`);
+            setCountdown(remaining);
+        }, 1000);
+
+        return () => {
+            console.log('[BREATHE] Clearing countdown interval');
+            clearInterval(interval);
+        };
+    }, [isActive, currentPhase]);
+
+    // Toggle breathing exercise
+    const toggleBreathing = () => {
+        if (!isActive) {
+            console.log('[BREATHE] ========== STARTING EXERCISE ==========');
+            setIsActive(true);
+            setCurrentPhase('inhale');
+            setCountdown(INHALE_DURATION);
+            setCurrentRound(1);
+            phaseStartTimeRef.current = Date.now();
+            animationPhaseRef.current = 'inhale';
+        } else {
+            console.log('[BREATHE] ========== STOPPING EXERCISE ==========');
+            setIsActive(false);
+            stopHaptics();
+            setCurrentPhase('inhale');
+            setCountdown(INHALE_DURATION);
+            setCurrentRound(1);
+            animationPhaseRef.current = 'inhale';
+        }
+    };
+
+    // Load haptic pattern from settings
+    useEffect(() => {
+        const loadPattern = async () => {
             try {
                 const saved = await AsyncStorage.getItem('@settings');
                 if (saved) {
                     const settings = JSON.parse(saved);
-                    const duration = settings.breathingDuration ?? 5;
-                    setBreathingDuration(duration);
-                    setTimeRemaining(duration * 60); // Convert to seconds
+                    setHapticPattern(settings.hapticPattern || 'wave');
                 }
             } catch (error) {
-                console.error('Failed to load duration:', error);
+                console.error('Failed to load haptic pattern:', error);
             }
         };
-        loadDuration();
-        AccessibilityInfo.isReduceMotionEnabled().then(setPrefersReducedMotion);
+        loadPattern();
     }, []);
 
-    // Countdown timer
-    useEffect(() => {
-        if (!isActive || timeRemaining <= 0) return;
+    // Stop when user navigates away from this screen
+    useFocusEffect(
+        React.useCallback(() => {
+            console.log('[BREATHE] Screen focused');
 
-        const interval = setInterval(() => {
-            setTimeRemaining(prev => {
-                if (prev <= 1) {
-                    setIsActive(false);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [isActive, timeRemaining]);
-
-    // Cleanup: Stop breathing when leaving screen
-    useEffect(() => {
-        return () => {
-            setIsActive(false);
-            stopHaptics();
-        };
-    }, [stopHaptics]);
-
-    const handlePhaseChange = async (phase: 'inhale' | 'exhale') => {
-        setCurrentPhase(phase);
-        if (isActive) {
-            await playHapticForPhase(phase);
-            if (phase === 'exhale') {
-                const newCount = sessionCount + 1;
-                setSessionCount(newCount);
-
-                // Auto-log after 3 complete cycles (30 seconds)
-                if (newCount === 3 && sessionStartTime) {
-                    const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
-                    await addEntry({
-                        intensity: 5, // Default moderate
-                        symptoms: ['Completed breathing exercise'],
-                        intervention: 'breathe',
-                        duration,
-                    });
-                }
-            }
-        }
-    };
-
-    const toggleBreathing = () => {
-        if (!isActive) {
-            setSessionCount(0);
-            setCurrentPhase('inhale');
-            setSessionStartTime(Date.now());
-            setTimeRemaining(breathingDuration * 60); // Reset timer
-        } else {
-            setSessionStartTime(null);
-            stopHaptics(); // Stop any ongoing haptic patterns
-        }
-        setIsActive(!isActive);
-    };
-
-    const handlePatternSelect = async (pattern: HapticPattern) => {
-        setCurrentPattern(pattern);
-        setShowPatternModal(false);
-
-        // Save to settings
-        try {
-            const saved = await AsyncStorage.getItem('@settings');
-            const settings = saved ? JSON.parse(saved) : {};
-            settings.hapticPattern = pattern;
-            await AsyncStorage.setItem('@settings', JSON.stringify(settings));
-        } catch (error) {
-            console.error('Failed to save haptic pattern:', error);
-        }
-    };
-
-    const patternDescriptions = {
-        wave: 'Gradual intensity (89% success)',
-        pulse: 'Rhythmic pulses (78% success)',
-        alternating: 'On/Off pattern (62% success)',
-    };
+            // Return cleanup function that runs when screen loses focus
+            return () => {
+                console.log('[BREATHE] Screen lost focus - stopping exercise');
+                setIsActive(false);
+                stopHaptics();
+            };
+        }, [stopHaptics])
+    );
 
     return (
         <View style={styles.container}>
             <EmergencyButton />
-            <View style={styles.content}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.header}>Breathe with the rhythm</Text>
-                    <Pressable
-                        style={styles.settingsButton}
-                        onPress={() => setShowPatternModal(true)}
-                        accessible={true}
-                        accessibilityLabel="Change haptic pattern"
-                        accessibilityRole="button"
-                    >
-                        <Ionicons name="settings-outline" size={24} color={Colors.primary.sageGreen} />
-                    </Pressable>
-                </View>
 
-                <View style={styles.animationContainer}>
+            {/* Header */}
+            <View style={styles.header}>
+                <Text style={styles.headerText}>Breathe with the rhythm</Text>
+            </View>
+
+            {/* Main breathing area */}
+            <View style={styles.breathingArea}>
+                {/* Phase indicator */}
+                <Text style={[
+                    styles.phaseText,
+                    currentPhase === 'inhale' && styles.phaseTextInhale
+                ]}>
+                    {currentPhase === 'inhale' ? 'Inhale' : 'Exhale'}
+                </Text>
+
+                {/* Animated circle with countdown */}
+                <View style={styles.circleContainer}>
                     <AnimatedCircle
-                        isActive={isActive && !prefersReducedMotion}
+                        isActive={isActive}
                         onPhaseChange={handlePhaseChange}
                     />
-                    <View style={styles.phaseIndicator}>
-                        <Text style={styles.phaseText}>{currentPhase === 'inhale' ? 'Inhale' : 'Exhale'}</Text>
-                        <Text style={styles.durationText}>
-                            {currentPhase === 'inhale' ? '4 sec In' : '6 sec Out'}
-                        </Text>
-                        {isActive && (
-                            <Text style={styles.timerText}>
-                                {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
-                            </Text>
-                        )}
+                    <View style={styles.countdownOverlay}>
+                        <Text style={styles.countdownNumber}>{countdown}</Text>
                     </View>
                 </View>
 
-                <View style={styles.controls}>
-                    <Button title={isActive ? 'Stop' : 'Start'} onPress={toggleBreathing} />
-                    <Text style={styles.sessionText}>Session {sessionCount + 1} • {currentPattern} pattern</Text>
-                </View>
+                {/* Duration indicator */}
+                <Text style={styles.durationText}>
+                    {INHALE_DURATION} sec in / {EXHALE_DURATION} sec out
+                </Text>
 
-                <View style={styles.instructions}>
-                    <Text style={styles.instructionText}>
-                        {isActive
-                            ? 'Focus on your breath. You can close your eyes and feel the haptic feedback.'
-                            : 'Tap Start to begin a guided breathing session with haptic feedback.'}
-                    </Text>
+                {/* Haptic pattern indicator */}
+                <Text style={styles.patternText}>
+                    Pattern: {hapticPattern.charAt(0).toUpperCase() + hapticPattern.slice(1)}
+                </Text>
+
+                {/* Round counter */}
+                <Text style={styles.roundText}>
+                    Round {Math.min(currentRound, TOTAL_ROUNDS)} of {TOTAL_ROUNDS}
+                </Text>
+
+                {/* Progress bar */}
+                <View style={styles.progressBarContainer}>
+                    <View
+                        style={[
+                            styles.progressBar,
+                            { width: `${(currentRound / TOTAL_ROUNDS) * 100}%` }
+                        ]}
+                    />
                 </View>
             </View>
 
-            {/* Pattern Selection Modal */}
-            <Modal
-                visible={showPatternModal}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setShowPatternModal(false)}
-            >
-                <Pressable style={styles.modalOverlay} onPress={() => setShowPatternModal(false)}>
-                    <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-                        <Text style={styles.modalTitle}>Select Haptic Pattern</Text>
-
-                        {(['wave', 'pulse', 'alternating'] as HapticPattern[]).map((pattern) => (
-                            <Pressable
-                                key={pattern}
-                                style={[
-                                    styles.patternOption,
-                                    currentPattern === pattern && styles.patternOptionSelected,
-                                ]}
-                                onPress={() => handlePatternSelect(pattern)}
-                                accessible={true}
-                                accessibilityLabel={`${pattern} pattern`}
-                                accessibilityRole="button"
-                            >
-                                <View style={styles.patternInfo}>
-                                    <Text style={[
-                                        styles.patternName,
-                                        currentPattern === pattern && styles.patternNameSelected,
-                                    ]}>
-                                        {pattern.charAt(0).toUpperCase() + pattern.slice(1)}
-                                    </Text>
-                                    <Text style={styles.patternDescription}>
-                                        {patternDescriptions[pattern]}
-                                    </Text>
-                                </View>
-                                {currentPattern === pattern && (
-                                    <Ionicons name="checkmark-circle" size={24} color={Colors.primary.sageGreen} />
-                                )}
-                            </Pressable>
-                        ))}
-
-                        <Pressable
-                            style={styles.modalCloseButton}
-                            onPress={() => setShowPatternModal(false)}
-                        >
-                            <Text style={styles.modalCloseText}>Close</Text>
-                        </Pressable>
-                    </Pressable>
+            {/* Control button */}
+            <View style={styles.buttonContainer}>
+                <Pressable
+                    style={styles.controlButton}
+                    onPress={toggleBreathing}
+                >
+                    <Text style={styles.controlButtonText}>
+                        {isActive ? 'Pause' : 'Start'}
+                    </Text>
                 </Pressable>
-            </Modal>
+            </View>
+
+            {/* Bottom spacing */}
+            <View style={styles.bottomSpacer} />
         </View>
     );
 }
@@ -231,138 +220,94 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: Colors.background.dark,
     },
-    content: {
-        flex: 1,
-        padding: Accessibility.spacing.screenPadding,
-        justifyContent: 'space-between',
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 20,
-    },
     header: {
+        paddingTop: 60,
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+        alignItems: 'center',
+    },
+    headerText: {
         fontSize: Typography.fontSize.h2,
-        fontWeight: 'bold',
-        color: Colors.text.primary,
-        flex: 1,
-    },
-    settingsButton: {
-        width: 44,
-        height: 44,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    animationContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    phaseIndicator: {
-        marginTop: 40,
-        alignItems: 'center',
-    },
-    phaseText: {
-        fontSize: Typography.fontSize.h1,
-        fontWeight: 'bold',
-        color: Colors.primary.sageGreen,
-    },
-    durationText: {
-        fontSize: Typography.fontSize.body,
-        color: Colors.text.secondary,
-        marginTop: 8,
-    },
-    timerText: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: Colors.primary.sageGreen,
-        marginTop: 16,
-    },
-    controls: {
-        alignItems: 'center',
-        gap: 16,
-    },
-    sessionText: {
-        fontSize: Typography.fontSize.caption,
-        color: Colors.text.secondary,
-    },
-    instructions: {
-        backgroundColor: Colors.background.card,
-        padding: 16,
-        borderRadius: Accessibility.borderRadius.card,
-        borderWidth: 1,
-        borderColor: Colors.primary.softSlate,
-    },
-    instructionText: {
-        fontSize: Typography.fontSize.caption,
-        color: Colors.text.secondary,
-        textAlign: 'center',
-        lineHeight: 18,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        backgroundColor: Colors.background.dark,
-        borderRadius: Accessibility.borderRadius.card,
-        padding: 24,
-        marginHorizontal: 32,
-        maxWidth: 400,
-        borderWidth: 2,
-        borderColor: Colors.primary.sageGreen,
-    },
-    modalTitle: {
-        fontSize: Typography.fontSize.h2,
-        fontWeight: 'bold',
-        color: Colors.text.primary,
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    patternOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-        borderRadius: Accessibility.borderRadius.button,
-        backgroundColor: Colors.background.card,
-        marginBottom: 12,
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    patternOptionSelected: {
-        borderColor: Colors.primary.sageGreen,
-        backgroundColor: 'rgba(135, 168, 120, 0.1)',
-    },
-    patternInfo: {
-        flex: 1,
-    },
-    patternName: {
-        fontSize: Typography.fontSize.body,
         fontWeight: '600',
         color: Colors.text.primary,
-        marginBottom: 4,
     },
-    patternNameSelected: {
-        color: Colors.primary.sageGreen,
+    breathingArea: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
     },
-    patternDescription: {
-        fontSize: Typography.fontSize.caption,
+    phaseText: {
+        fontSize: Typography.fontSize.h3,
+        fontWeight: '600',
         color: Colors.text.secondary,
+        marginBottom: 40,
     },
-    modalCloseButton: {
-        marginTop: 8,
-        padding: 16,
-        borderRadius: Accessibility.borderRadius.button,
-        backgroundColor: Colors.primary.softSlate,
+    phaseTextInhale: {
+        color: Colors.accent.orange,
+    },
+    circleContainer: {
+        position: 'relative',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 40,
+    },
+    countdownOverlay: {
+        position: 'absolute',
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    modalCloseText: {
+    countdownNumber: {
+        fontSize: 72,
+        fontWeight: 'bold',
+        color: Colors.text.primary,
+    },
+    durationText: {
+        fontSize: Typography.fontSize.caption,
+        color: Colors.text.secondary,
+        marginBottom: 4,
+    },
+    patternText: {
+        fontSize: Typography.fontSize.caption,
+        color: Colors.primary.sageGreen,
+        marginBottom: 8,
+        fontWeight: '600',
+    },
+    roundText: {
+        fontSize: Typography.fontSize.caption,
+        color: Colors.text.tertiary,
+        marginBottom: 16,
+    },
+    progressBarContainer: {
+        width: '80%',
+        height: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    progressBar: {
+        height: '100%',
+        backgroundColor: Colors.primary.sageGreen,
+        borderRadius: 2,
+    },
+    buttonContainer: {
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+    },
+    controlButton: {
+        backgroundColor: Colors.background.card,
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    controlButtonText: {
         fontSize: Typography.fontSize.button,
         fontWeight: '600',
         color: Colors.text.primary,
+    },
+    bottomSpacer: {
+        height: 40,
     },
 });

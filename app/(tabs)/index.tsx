@@ -26,7 +26,10 @@ export default function CalmScreen() {
                 >
                     <Ionicons name="settings-outline" size={28} color={Colors.primary.sageGreen} />
                 </Pressable>
-                <Text style={styles.header}>Find Your Calm</Text>
+                <View style={styles.headerTextContainer}>
+                    <Text style={styles.header}>Find Your Calm</Text>
+                    <Text style={styles.subtitle}>Choose what feels right</Text>
+                </View>
                 <View style={styles.spacer} />
             </View>
 
@@ -88,12 +91,21 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         backgroundColor: 'rgba(135, 168, 120, 0.15)',
     },
+    headerTextContainer: {
+        flex: 1,
+        alignItems: 'center',
+    },
     header: {
         fontSize: Typography.fontSize.h1,
         fontWeight: 'bold',
         color: Colors.text.primary,
-        flex: 1,
         textAlign: 'center',
+    },
+    subtitle: {
+        fontSize: Typography.fontSize.caption,
+        color: Colors.text.secondary,
+        textAlign: 'center',
+        marginTop: 4,
     },
     spacer: {
         width: 44,

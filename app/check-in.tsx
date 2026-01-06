@@ -202,13 +202,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 20,
-        backgroundColor: Colors.background.card,
+        backgroundColor: Colors.mood.unselected,
         borderWidth: 2,
-        borderColor: Colors.primary.softSlate,
+        borderColor: Colors.mood.unselected,
     },
     symptomChipSelected: {
         backgroundColor: 'rgba(135, 168, 120, 0.2)',
-        borderColor: Colors.primary.sageGreen,
+        borderColor: Colors.mood.selected,
     },
     symptomText: {
         fontSize: Typography.fontSize.caption,

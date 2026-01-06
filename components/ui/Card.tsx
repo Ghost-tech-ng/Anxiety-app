@@ -24,7 +24,7 @@ export const Card: React.FC<CardProps> = ({
         <Pressable
             style={({ pressed }) => [
                 styles.card,
-                { borderColor: color },
+                { backgroundColor: color + '40' }, // 25% opacity
                 pressed && styles.pressed,
             ]}
             onPress={onPress}
@@ -36,7 +36,7 @@ export const Card: React.FC<CardProps> = ({
             <View style={styles.content}>
                 {icon && <View style={styles.iconContainer}>{icon}</View>}
                 <View style={styles.textContainer}>
-                    <Text style={[styles.title, { color }]}>{title}</Text>
+                    <Text style={styles.title}>{title}</Text>
                     <Text style={styles.subtitle}>{subtitle}</Text>
                 </View>
             </View>
@@ -46,16 +46,15 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: Colors.background.card,
-        borderWidth: 2,
-        borderRadius: Accessibility.borderRadius.card,
-        padding: Accessibility.spacing.cardPadding,
+        borderWidth: 0,
+        borderRadius: 16,
+        padding: 20,
         minHeight: 100,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
     },
     pressed: {
         opacity: 0.8,
@@ -72,9 +71,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        fontSize: Typography.fontSize.body,
-        fontWeight: '500',
+        fontSize: Typography.fontSize.h3,
+        fontWeight: 'bold',
         marginBottom: 4,
+        color: Colors.text.primary,
     },
     subtitle: {
         fontSize: Typography.fontSize.caption,
