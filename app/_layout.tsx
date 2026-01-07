@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { EmergencyProvider } from '../components/ui/EmergencyButton';
 import { OfflineIndicator } from '../components/ui/OfflineIndicator';
 import { TremorAlert } from '../components/tremor/TremorAlert';
 import { useTremorDetection } from '../hooks/useTremorDetection';
@@ -34,7 +35,7 @@ export default function RootLayout() {
     const { isTremorDetected, resetTremorDetection } = useTremorDetection(tremorEnabled, tremorSensitivity);
 
     return (
-        <>
+        <EmergencyProvider>
             <Stack
                 screenOptions={{
                     headerStyle: {
@@ -58,6 +59,6 @@ export default function RootLayout() {
             </Stack>
             <OfflineIndicator />
             <TremorAlert visible={isTremorDetected} onDismiss={resetTremorDetection} />
-        </>
+        </EmergencyProvider>
     );
 }

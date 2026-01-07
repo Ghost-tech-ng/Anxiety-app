@@ -41,8 +41,14 @@ export const useHaptics = () => {
                         : Haptics.ImpactFeedbackStyle.Heavy;
             await Haptics.impactAsync(style);
         } else {
-            // Android
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            // Android - map intensities correctly
+            const style =
+                intensity === 'light'
+                    ? Haptics.ImpactFeedbackStyle.Light
+                    : intensity === 'medium'
+                        ? Haptics.ImpactFeedbackStyle.Medium
+                        : Haptics.ImpactFeedbackStyle.Heavy;
+            await Haptics.impactAsync(style);
         }
     }, []);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EmergencyButton } from '../components/ui/EmergencyButton';
 import { Button } from '../components/ui/Button';
@@ -58,6 +58,41 @@ export default function SettingsScreen() {
     const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
         const newSettings = { ...settings, [key]: value };
         saveSettings(newSettings);
+    };
+
+    const clearHistory = async () => {
+        try {
+            const logs = await AsyncStorage.getItem('@mindfulmoments_anxiety_log');
+            if (!logs || JSON.parse(logs).length === 0) {
+                Alert.alert('Info', 'History is already empty.');
+                return;
+            }
+
+            Alert.alert(
+                'Clear History',
+                'Are you sure you want to delete all your anxiety logs? This cannot be undone.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                await AsyncStorage.removeItem('@mindfulmoments_anxiety_log');
+                                // Force a small delay to ensure UI updates if needed
+                                setTimeout(() => {
+                                    Alert.alert('Success', 'History cleared successfully.');
+                                }, 100);
+                            } catch (error) {
+                                Alert.alert('Error', 'Failed to clear history. Please try again.');
+                            }
+                        },
+                    },
+                ]
+            );
+        } catch (error) {
+            console.error('Error checking history:', error);
+        }
     };
 
     return (
@@ -162,6 +197,20 @@ export default function SettingsScreen() {
                             ))}
                         </>
                     )}
+                </View>
+
+                {/* Privacy & Data */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Privacy & Data</Text>
+                    <Text style={styles.sectionDescription}>
+                        Manage your local data
+                    </Text>
+                    <Pressable
+                        style={styles.dangerButton}
+                        onPress={clearHistory}
+                    >
+                        <Text style={styles.dangerButtonText}>Clear History</Text>
+                    </Pressable>
                 </View>
 
                 {isSaving && (
@@ -271,5 +320,19 @@ const styles = StyleSheet.create({
         color: Colors.primary.sageGreen,
         textAlign: 'center',
         marginTop: 8,
+    },
+    dangerButton: {
+        padding: 16,
+        borderRadius: Accessibility.borderRadius.button,
+        backgroundColor: 'rgba(235, 87, 87, 0.1)',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#EB5757',
+        marginTop: 8,
+    },
+    dangerButtonText: {
+        fontSize: Typography.fontSize.button,
+        fontWeight: '600',
+        color: '#EB5757',
     },
 });

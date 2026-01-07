@@ -19,7 +19,7 @@ export default function BreatheScreen() {
     const [currentRound, setCurrentRound] = useState(1);
     const [hapticPattern, setHapticPattern] = useState<string>('wave');
 
-    const { playHapticForPhase, stopHaptics } = useHaptics();
+    const { playHapticForPhase, stopHaptics, setCurrentPattern } = useHaptics();
     const phaseStartTimeRef = useRef<number>(0);
     const animationPhaseRef = useRef<'inhale' | 'exhale'>('inhale');
 
@@ -96,33 +96,33 @@ export default function BreatheScreen() {
         }
     };
 
-    // Load haptic pattern from settings
-    useEffect(() => {
-        const loadPattern = async () => {
-            try {
-                const saved = await AsyncStorage.getItem('@settings');
-                if (saved) {
-                    const settings = JSON.parse(saved);
-                    setHapticPattern(settings.hapticPattern || 'wave');
-                }
-            } catch (error) {
-                console.error('Failed to load haptic pattern:', error);
-            }
-        };
-        loadPattern();
-    }, []);
-
-    // Stop when user navigates away from this screen
+    // Load haptic pattern from settings when screen focuses
     useFocusEffect(
         React.useCallback(() => {
+            const loadPattern = async () => {
+                try {
+                    const saved = await AsyncStorage.getItem('@settings');
+                    if (saved) {
+                        const settings = JSON.parse(saved);
+                        const pattern = settings.hapticPattern || 'wave';
+                        setHapticPattern(pattern);
+                        setCurrentPattern(pattern);
+                    }
+                } catch (error) {
+                    console.error('Failed to load haptic pattern:', error);
+                }
+            };
+            loadPattern();
 
             // Return cleanup function that runs when screen loses focus
             return () => {
                 setIsActive(false);
                 stopHaptics();
             };
-        }, [stopHaptics])
+        }, [stopHaptics, setCurrentPattern])
     );
+
+
 
     return (
         <View style={styles.container}>
