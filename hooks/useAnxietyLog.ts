@@ -15,6 +15,8 @@ export const useAnxietyLog = () => {
       if (data) {
         const parsed = JSON.parse(data);
         setEntries(parsed.sort((a: AnxietyEntry, b: AnxietyEntry) => b.timestamp - a.timestamp));
+      } else {
+        setEntries([]);
       }
     } catch (error) {
       console.error('Error loading entries:', error);
