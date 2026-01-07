@@ -9,11 +9,6 @@ export const useTremorDetection = (enabled: boolean = true, sensitivity: 'low' |
     const pathname = usePathname();
     const lastTriggerTime = useRef(0);
 
-    // Update sensitivity when it changes
-    useEffect(() => {
-        sensorService.setSensitivity(sensitivity);
-    }, [sensitivity, sensorService]);
-
     // Disable tremor detection on certain screens
     const shouldDetect = enabled &&
         pathname !== '/breathe' &&
@@ -30,6 +25,11 @@ export const useTremorDetection = (enabled: boolean = true, sensitivity: 'low' |
                 setIsAvailable(false);
             });
     }, []);
+
+    // Update sensitivity when it changes
+    useEffect(() => {
+        sensorService.setSensitivity(sensitivity);
+    }, [sensitivity, sensorService]);
 
     useEffect(() => {
         if (!shouldDetect || !isAvailable) return;
